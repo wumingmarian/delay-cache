@@ -56,7 +56,9 @@ class DelayListCache extends AbstractAnnotation
      * @var string
      */
     public $pagesName = "pages";
-
+    /**
+     * @var string
+     */
     public $sortByName = 'sort_by';
 
     public function __construct(...$value)
