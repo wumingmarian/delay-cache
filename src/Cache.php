@@ -8,6 +8,7 @@ namespace Wumingmarian\DelayCache;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Redis\Redis;
+use Wumingmarian\DelayCache\Constants\SortBy;
 use Wumingmarian\DelayCache\Exception\ConfigureNotExistsException;
 
 class Cache
@@ -72,7 +73,7 @@ class Cache
      * @param string $sortBy
      * @return array
      */
-    public function paginate($cacheKey, $callable, $expire, $page = 1, $pages = 10, $sortBy = 'ASC')
+    public function paginate($cacheKey, $callable, $expire, $page = 1, $pages = 10, $sortBy = SortBy::ASC)
     {
         $start = ($page - 1) * $pages;
         $end = ($pages * $page) - 1;
@@ -92,10 +93,10 @@ class Cache
      * @param $cacheKey
      * @param $start
      * @param $end
-     * @param string $sortBy
+     * @param $sortBy
      * @return array
      */
-    public function getByPaginate($cacheKey, $start, $end, $sortBy = 'ASC')
+    public function getByPaginate($cacheKey, $start, $end, $sortBy)
     {
         if ($this->redis->type($cacheKey) === \Redis::REDIS_STRING) {
             return $this->redis->get($cacheKey);
@@ -106,7 +107,7 @@ class Cache
             return [];
         }
 
-        if ($sortBy === 'ASC') {
+        if ((int)$sortBy === SortBy::ASC) {
             $res = $this->redis->zRange($cacheKey, $start, $end);
         } else {
             $res = $this->redis->zRevRange($cacheKey, $start, $end);

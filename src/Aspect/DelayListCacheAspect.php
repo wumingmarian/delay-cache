@@ -56,6 +56,6 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pageName] = 1;
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pagesName] = $annotation->cacheLimit;
             return [$proceedingJoinPoint->process(), true];
-        }, $expire, $value[$annotation->pageName], $value[$annotation->pagesName]);
+        }, $expire, $value[$annotation->pageName], $value[$annotation->pagesName], $value[$annotation->sortByName]);
     }
 }
