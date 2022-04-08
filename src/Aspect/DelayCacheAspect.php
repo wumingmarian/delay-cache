@@ -43,6 +43,7 @@ class DelayCacheAspect extends AbstractDelayCacheAspect
         }
 
         $cacheKey = $this->cache->key($value, $annotation->config, $annotation->prefix);
+        $expire = $this->cache->getConfig($annotation->config, 'expire');
 
         return $this->cache->get($cacheKey, function () use ($proceedingJoinPoint, $annotation, $value) {
             if ($annotation->dispatchLoopEnable === true
@@ -50,6 +51,6 @@ class DelayCacheAspect extends AbstractDelayCacheAspect
                 return [$proceedingJoinPoint->process(), false];
             }
             return [$proceedingJoinPoint->process(), true];
-        });
+        }, $expire);
     }
 }

@@ -17,13 +17,14 @@ class DelayListCacheJob extends AbstractDelayCacheJob
     {
         $cache = make(Cache::class);
         $cacheKey = $cache->key($this->data, $this->annotation->config, $this->annotation->prefix);
+        $expire = $cache->getConfig($this->annotation->config, 'expire');
 
         $this->data[$this->annotation->pageName] = 1;
         $this->data[$this->annotation->pagesName] = $this->annotation->cacheLimit;
         $this->data['__DISPATCH_LOOP__'] = true;
         [$res, $isCache] = make($this->class)->{$this->method}($this->data);
         if (true === $isCache) {
-            $cache->setByPaginate($cacheKey,$res);
+            $cache->setByPaginate($cacheKey, $res, $expire);
         }
         return true;
     }

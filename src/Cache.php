@@ -20,6 +20,10 @@ class Cache
      * @var Redis
      */
     protected $redis;
+    /**
+     * @var int
+     */
+    protected $expire = 86400;
 
     public function __construct(ConfigInterface $config, Redis $redis)
     {
@@ -29,15 +33,16 @@ class Cache
 
     /**
      * @param $cacheKey
-     * @param null $callable
+     * @param $callable
+     * @param $expire
      * @return mixed
      */
-    public function get($cacheKey, $callable = null)
+    public function get($cacheKey, $callable, $expire)
     {
         if (!$this->redis->exists($cacheKey) && $callable instanceof \Closure) {
             [$res, $isCache] = $callable();
             if (true === $isCache) {
-                $this->set($cacheKey, $res);
+                $this->set($cacheKey, $res, $expire);
             } else {
                 return $res;
             }
@@ -49,10 +54,10 @@ class Cache
     /**
      * @param $cacheKey
      * @param $res
-     * @param int $expire
+     * @param $expire
      * @return bool
      */
-    public function set($cacheKey, $res, $expire = 604800)
+    public function set($cacheKey, $res, $expire)
     {
         return $this->redis->set($cacheKey, serialize($res), $expire);
     }
@@ -61,12 +66,13 @@ class Cache
     /**
      * @param $cacheKey
      * @param $callable
+     * @param $expire
      * @param int $page
      * @param int $pages
      * @param string $sortBy
      * @return array
      */
-    public function paginate($cacheKey, $callable, $page = 1, $pages = 10, $sortBy = 'ASC')
+    public function paginate($cacheKey, $callable, $expire, $page = 1, $pages = 10, $sortBy = 'ASC')
     {
         $start = ($page - 1) * $pages;
         $end = ($pages * $page) - 1;
@@ -74,7 +80,7 @@ class Cache
         if (!$this->redis->exists($cacheKey)) {
             [$res, $isCache] = $callable();
             if (true === $isCache) {
-                $this->setByPaginate($cacheKey, $res);
+                $this->setByPaginate($cacheKey, $res, $expire);
             } else {
                 return $res;
             }
@@ -92,7 +98,7 @@ class Cache
     public function getByPaginate($cacheKey, $start, $end, $sortBy = 'ASC')
     {
         if ($this->redis->type($cacheKey) === \Redis::REDIS_STRING) {
-            return $this->get($cacheKey);
+            return $this->redis->get($cacheKey);
         }
 
         $len = $this->redis->zCard($cacheKey);
@@ -116,12 +122,13 @@ class Cache
     /**
      * @param $cacheKey
      * @param $res
+     * @param $expire
      * @return bool
      */
-    public function setByPaginate($cacheKey, $res)
+    public function setByPaginate($cacheKey, $res, $expire)
     {
         if (!is_array($res) || empty($res)) {
-            return $this->set($cacheKey, $res);
+            return $this->set($cacheKey, $res, $expire);
         }
         if ($this->redis->type($cacheKey) === \Redis::REDIS_STRING) {
             $this->redis->del($cacheKey);
@@ -130,6 +137,7 @@ class Cache
             $this->redis->zRemRangeByScore($cacheKey, (string)$key, (string)$key);
             $this->redis->zAdd($cacheKey, $key, serialize($value));
         }
+        $this->expire($cacheKey, $expire);
         return true;
     }
 
@@ -155,8 +163,7 @@ class Cache
      */
     public function key($fieldData, $config, $prefix = null)
     {
-        $config = $this->getConfig($config);
-        $fields = $config['fields'];
+        $fields = $this->getConfig($config, 'fields');
 
         if (is_array($fields) && count($fields) > 1) {
             foreach ($fields as $field) {
@@ -184,16 +191,22 @@ class Cache
 
     /**
      * @param $config
+     * @param null $index
      * @return mixed
      * @throws ConfigureNotExistsException
      */
-    public function getConfig($config)
+    public function getConfig($config, $index = null)
     {
         $configName = 'delay_cache.' . $config;
         $config = $this->config->get($configName);
         if (null === $config) {
             throw new ConfigureNotExistsException("The config [$configName] is not defined");
         }
+
+        if (!is_null($index)) {
+            $config = $config[$index] ?? null;
+        }
+
         return $config;
     }
 
@@ -206,4 +219,16 @@ class Cache
         return $this->redis->del($cacheKey);
     }
 
+    /**
+     * @param $cacheKey
+     * @param $expire
+     * @return bool
+     */
+    public function expire($cacheKey, $expire)
+    {
+        if (!is_numeric($expire)) {
+            $expire = $this->expire;
+        }
+        return $this->redis->expire($cacheKey, $expire);
+    }
 }

@@ -17,11 +17,12 @@ class DelayCacheJob extends AbstractDelayCacheJob
     {
         $cache = make(Cache::class);
         $cacheKey = $cache->key($this->data, $this->annotation->config, $this->annotation->prefix);
+        $expire = $cache->getConfig($this->annotation->config, 'expire');
 
         $this->data['__DISPATCH_LOOP__'] = true;
         [$res, $isCache] = make($this->class)->{$this->method}($this->data);
         if ($isCache) {
-            $cache->set($cacheKey, $res);
+            $cache->set($cacheKey, $res, $expire);
         }
         return true;
     }

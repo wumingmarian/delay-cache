@@ -46,6 +46,7 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
         $value[$annotation->pagesName] = (string)(isset($value[$annotation->pagesName]) && is_numeric($value[$annotation->pagesName]) ? $value[$annotation->pagesName] : 10);
 
         $cacheKey = $this->cache->key($value, $annotation->config, $annotation->prefix);
+        $expire = $this->cache->getConfig($annotation->config, 'expire');
 
         return $this->cache->paginate($cacheKey, function () use ($proceedingJoinPoint, $annotation, $value) {
             if (true === $annotation->dispatchLoopEnable
@@ -55,6 +56,6 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pageName] = 1;
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pagesName] = $annotation->cacheLimit;
             return [$proceedingJoinPoint->process(), true];
-        }, $value[$annotation->pageName], $value[$annotation->pagesName]);
+        }, $expire, $value[$annotation->pageName], $value[$annotation->pagesName]);
     }
 }
