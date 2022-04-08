@@ -36,10 +36,10 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
         $value = $this->getValue($annotation, $proceedingJoinPoint);
 
         if ($this->dispatchLoop->isDispatchLoop($value)) {
-            if ($this->dispatchLoop->asyncJobPush($annotation, $proceedingJoinPoint, $value)) {
-                return $proceedingJoinPoint->process();
+            if (false === $this->dispatchLoop->asyncJobPush($annotation, $proceedingJoinPoint, $value)) {
+                return [$proceedingJoinPoint->process(), false];
             }
-            return true;
+            return [$proceedingJoinPoint->process(), true];
         }
 
         $value[$annotation->pageName] = (string)(isset($value[$annotation->pageName]) && is_numeric($value[$annotation->pageName]) ? $value[$annotation->pageName] : 1);

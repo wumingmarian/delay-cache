@@ -36,8 +36,10 @@ class DelayCacheAspect extends AbstractDelayCacheAspect
         $value = $this->getValue($annotation, $proceedingJoinPoint);
 
         if ($this->dispatchLoop->isDispatchLoop($value)) {
-            $this->dispatchLoop->asyncJobPush($annotation, $proceedingJoinPoint, $value);
-            return $proceedingJoinPoint->process();
+            if (false === $this->dispatchLoop->asyncJobPush($annotation, $proceedingJoinPoint, $value)) {
+                return [$proceedingJoinPoint->process(), false];
+            }
+            return [$proceedingJoinPoint->process(), true];
         }
 
         $cacheKey = $this->cache->key($value, $annotation->config, $annotation->prefix);

@@ -85,6 +85,8 @@ class DispatchLoop
         $config = $this->cache->getConfig($annotation->config);
 
         if ($this->isExit($config['exit_callable'], $value) === false) {
+            $cacheKey = $this->cache->key($value, $annotation->config, $annotation->prefix);
+            $this->cache->foreDel($cacheKey);
             return false;
         }
 

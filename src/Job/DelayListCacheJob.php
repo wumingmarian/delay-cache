@@ -21,8 +21,10 @@ class DelayListCacheJob extends AbstractDelayCacheJob
         $this->data[$this->annotation->pageName] = 1;
         $this->data[$this->annotation->pagesName] = $this->annotation->cacheLimit;
         $this->data['__DISPATCH_LOOP__'] = true;
-        $res = make($this->class)->{$this->method}($this->data);
-        return $cache->setByPaginate($cacheKey,$res);
-
+        [$res, $isCache] = make($this->class)->{$this->method}($this->data);
+        if (true === $isCache) {
+            $cache->setByPaginate($cacheKey,$res);
+        }
+        return true;
     }
 }

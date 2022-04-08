@@ -196,4 +196,14 @@ class Cache
         }
         return $config;
     }
+
+    /**
+     * @param $cacheKey
+     * @return int
+     */
+    public function foreDel($cacheKey)
+    {
+        return $this->redis->del($cacheKey);
+    }
+
 }

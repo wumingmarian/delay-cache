@@ -19,7 +19,10 @@ class DelayCacheJob extends AbstractDelayCacheJob
         $cacheKey = $cache->key($this->data, $this->annotation->config, $this->annotation->prefix);
 
         $this->data['__DISPATCH_LOOP__'] = true;
-        $res = make($this->class)->{$this->method}($this->data);
-        return $cache->set($cacheKey,$res);
+        [$res, $isCache] = make($this->class)->{$this->method}($this->data);
+        if ($isCache) {
+            $cache->set($cacheKey, $res);
+        }
+        return true;
     }
 }
