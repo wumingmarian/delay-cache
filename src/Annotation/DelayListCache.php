@@ -19,7 +19,7 @@ class DelayListCache extends AbstractAnnotation
     /**
      * @var string
      */
-    public $driver = 'default';
+    public $driver;
     /**
      * @var string
      */
@@ -43,7 +43,7 @@ class DelayListCache extends AbstractAnnotation
     /**
      * @var string
      */
-    public $fieldConfig;
+    public $config;
     /**
      * @var int
      */

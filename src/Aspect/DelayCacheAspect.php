@@ -10,6 +10,7 @@ use Hyperf\Di\Exception\Exception;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Wumingmarian\DelayCache\Annotation\DelayCache;
+use Wumingmarian\DelayCache\Exception\ConfigureNotExistsException;
 
 /**
  * @Aspect
@@ -26,24 +27,25 @@ class DelayCacheAspect extends AbstractDelayCacheAspect
      * @throws Exception
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
+     * @throws ConfigureNotExistsException
      */
     public function process(ProceedingJoinPoint $proceedingJoinPoint)
     {
         /** @var DelayCache $annotation */
         $annotation = $proceedingJoinPoint->getAnnotationMetadata()->method[DelayCache::class];
-        $fieldData = $this->getFieldData($annotation, $proceedingJoinPoint);
+        $value = $this->getValue($annotation, $proceedingJoinPoint);
 
-        if ($this->isDispatchLoop($fieldData)) {
-            $this->asyncJobPush($annotation, $proceedingJoinPoint, $fieldData);
+        if ($this->isDispatchLoop($value)) {
+            $this->asyncJobPush($annotation, $proceedingJoinPoint, $value);
             return $proceedingJoinPoint->process();
         }
 
-        $cacheKey = $this->cache->key($fieldData, $annotation->fieldConfig, $annotation->prefix);
+        $cacheKey = $this->cache->key($value, $annotation->config, $annotation->prefix);
 
-        return $this->cache->get($cacheKey, function () use ($proceedingJoinPoint, $annotation, $fieldData) {
+        return $this->cache->get($cacheKey, function () use ($proceedingJoinPoint, $annotation, $value) {
             $res = $proceedingJoinPoint->process();
             if ($annotation->dispatchLoopEnable === true) {
-                $this->asyncJobPush($annotation, $proceedingJoinPoint, $fieldData);
+                $this->asyncJobPush($annotation, $proceedingJoinPoint, $value);
             }
             return $res;
         });

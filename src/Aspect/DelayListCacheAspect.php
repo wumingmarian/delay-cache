@@ -10,6 +10,7 @@ use Hyperf\Di\Exception\Exception;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Wumingmarian\DelayCache\Annotation\DelayListCache;
+use Wumingmarian\DelayCache\Exception\ConfigureNotExistsException;
 
 /**
  * @Aspect
@@ -26,31 +27,32 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
      * @throws Exception
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
+     * @throws ConfigureNotExistsException
      */
     public function process(ProceedingJoinPoint $proceedingJoinPoint)
     {
         /** @var DelayListCache $annotation */
         $annotation = $proceedingJoinPoint->getAnnotationMetadata()->method[DelayListCache::class];
-        $fieldData = $this->getFieldData($annotation, $proceedingJoinPoint);
+        $value = $this->getValue($annotation, $proceedingJoinPoint);
 
-        if ($this->isDispatchLoop($fieldData)) {
-            $this->asyncJobPush($annotation, $proceedingJoinPoint, $fieldData);
+        if ($this->isDispatchLoop($value)) {
+            $this->asyncJobPush($annotation, $proceedingJoinPoint, $value);
             return $proceedingJoinPoint->process();
         }
 
-        $fieldData[$annotation->pageName] = (string)(isset($fieldData[$annotation->pageName]) && is_numeric($fieldData[$annotation->pageName]) ? $fieldData[$annotation->pageName] : 1);
-        $fieldData[$annotation->pagesName] = (string)(isset($fieldData[$annotation->pagesName]) && is_numeric($fieldData[$annotation->pagesName]) ? $fieldData[$annotation->pagesName] : 10);
+        $value[$annotation->pageName] = (string)(isset($value[$annotation->pageName]) && is_numeric($value[$annotation->pageName]) ? $value[$annotation->pageName] : 1);
+        $value[$annotation->pagesName] = (string)(isset($value[$annotation->pagesName]) && is_numeric($value[$annotation->pagesName]) ? $value[$annotation->pagesName] : 10);
 
-        $cacheKey = $this->cache->key($fieldData, $annotation->fieldConfig, $annotation->prefix);
+        $cacheKey = $this->cache->key($value, $annotation->config, $annotation->prefix);
 
-        return $this->cache->paginate($cacheKey, function () use ($proceedingJoinPoint, $annotation, $fieldData) {
+        return $this->cache->paginate($cacheKey, function () use ($proceedingJoinPoint, $annotation, $value) {
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pageName] = 1;
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pagesName] = $annotation->cacheLimit;
             $res = $proceedingJoinPoint->process();
             if ($annotation->dispatchLoopEnable === true) {
-                $this->asyncJobPush($annotation, $proceedingJoinPoint, $fieldData);
+                $this->asyncJobPush($annotation, $proceedingJoinPoint, $value);
             }
             return $res;
-        }, $fieldData[$annotation->pageName], $fieldData[$annotation->pagesName]);
+        }, $value[$annotation->pageName], $value[$annotation->pagesName]);
     }
 }

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Wumingmarian\DelayCache\Aspect;
 
 use Hyperf\AsyncQueue\Driver\DriverFactory;
+use Hyperf\Config\Config;
 use Hyperf\Di\Aop\AbstractAspect;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Wumingmarian\DelayCache\Cache;
+use Wumingmarian\DelayCache\Exception\ConfigureNotExistsException;
 
 abstract class AbstractDelayCacheAspect extends AbstractAspect
 {
@@ -37,17 +39,26 @@ abstract class AbstractDelayCacheAspect extends AbstractAspect
     /**
      * @param $annotation
      * @param $proceedingJoinPoint
-     * @param $fieldData
+     * @param $value
+     * @throws ConfigureNotExistsException
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
      */
-    public function asyncJobPush($annotation, $proceedingJoinPoint, $fieldData)
+    public function asyncJobPush($annotation, $proceedingJoinPoint, $value)
     {
-        $this->container->get(DriverFactory::class)->get($annotation->driver)->push(make($annotation->job, [
+        $config = $this->cache->getConfig($annotation->config);
+
+        if ($annotation->driver) {
+            $driver = $annotation->driver;
+        } else {
+            $driver = $config['driver'] ?? 'default';
+        }
+
+        $this->container->get(DriverFactory::class)->get($driver)->push(make($annotation->job, [
             $proceedingJoinPoint->className,
             $proceedingJoinPoint->methodName,
             $annotation,
-            $fieldData
+            $value
         ]), $annotation->delay);
     }
 
@@ -56,22 +67,22 @@ abstract class AbstractDelayCacheAspect extends AbstractAspect
      * @param $proceedingJoinPoint
      * @return mixed
      */
-    public function getFieldData($annotation, $proceedingJoinPoint)
+    public function getValue($annotation, $proceedingJoinPoint)
     {
         if ($annotation->value) {
-            $fieldData = $proceedingJoinPoint->arguments['keys'][$annotation->value];
+            $value = $proceedingJoinPoint->arguments['keys'][$annotation->value];
         } else {
-            $fieldData = $proceedingJoinPoint->getArguments()[0];
+            $value = $proceedingJoinPoint->getArguments()[0];
         }
-        return $fieldData;
+        return $value;
     }
 
     /**
-     * @param $fieldData
+     * @param $value
      * @return bool
      */
-    public function isDispatchLoop($fieldData)
+    public function isDispatchLoop($value)
     {
-        return isset($fieldData['__DISPATCH_LOOP__']) && $fieldData['__DISPATCH_LOOP__'] === true;
+        return isset($value['__DISPATCH_LOOP__']) && $value['__DISPATCH_LOOP__'] === true;
     }
 }

@@ -8,6 +8,7 @@ namespace Wumingmarian\DelayCache;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Redis\Redis;
+use Wumingmarian\DelayCache\Exception\ConfigureNotExistsException;
 
 class Cache
 {
@@ -141,13 +142,15 @@ class Cache
 
     /**
      * @param $fieldData
-     * @param $field
+     * @param $config
      * @param null $prefix
      * @return string
+     * @throws ConfigureNotExistsException
      */
-    public function key($fieldData, $field, $prefix = null)
+    public function key($fieldData, $config, $prefix = null)
     {
-        $fields = $this->config->get('delay_cache.fields.' . $field);
+        $config = $this->getConfig($config);
+        $fields = $config['fields'];
 
         if (is_array($fields) && count($fields) > 1) {
             foreach ($fields as $field) {
@@ -171,5 +174,20 @@ class Cache
         }
 
         return $key;
+    }
+
+    /**
+     * @param $config
+     * @return mixed
+     * @throws ConfigureNotExistsException
+     */
+    public function getConfig($config)
+    {
+        $configName = 'delay_cache.' . $config;
+        $config = $this->config->get($configName);
+        if (null === $config) {
+            throw new ConfigureNotExistsException("The config [$configName] is not defined");
+        }
+        return $config;
     }
 }

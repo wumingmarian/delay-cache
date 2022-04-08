@@ -19,11 +19,12 @@
     },
     "require": {
         "php": ">=7.3",
-        "hyperf/di": "~2.2.0",
+        "ext-redis": "*",
         "hyperf/async-queue": "~2.2.0",
-        "hyperf/redis": "~2.2.0",
         "hyperf/config": "~2.2.0",
-        "ext-redis": "*"
+        "hyperf/di": "~2.2.0",
+        "hyperf/process": "^2.2",
+        "hyperf/redis": "~2.2.0"
     },
     "suggest": {
         "swow/swow": "Required to create swow components."
