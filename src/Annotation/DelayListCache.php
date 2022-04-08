@@ -35,7 +35,7 @@ class DelayListCache extends AbstractAnnotation
     /**
      * @var int
      */
-    public $delay = 600;
+    public $delay;
     /**
      * @var string
      */

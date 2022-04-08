@@ -35,9 +35,11 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
         $annotation = $proceedingJoinPoint->getAnnotationMetadata()->method[DelayListCache::class];
         $value = $this->getValue($annotation, $proceedingJoinPoint);
 
-        if ($this->isDispatchLoop($value)) {
-            $this->asyncJobPush($annotation, $proceedingJoinPoint, $value);
-            return $proceedingJoinPoint->process();
+        if ($this->dispatchLoop->isDispatchLoop($value)) {
+            if ($this->dispatchLoop->asyncJobPush($annotation, $proceedingJoinPoint, $value)) {
+                return $proceedingJoinPoint->process();
+            }
+            return true;
         }
 
         $value[$annotation->pageName] = (string)(isset($value[$annotation->pageName]) && is_numeric($value[$annotation->pageName]) ? $value[$annotation->pageName] : 1);
@@ -46,13 +48,13 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
         $cacheKey = $this->cache->key($value, $annotation->config, $annotation->prefix);
 
         return $this->cache->paginate($cacheKey, function () use ($proceedingJoinPoint, $annotation, $value) {
+            if (true === $annotation->dispatchLoopEnable
+                && false === $this->dispatchLoop->asyncJobPush($annotation, $proceedingJoinPoint, $value)) {
+                return [$proceedingJoinPoint->process(), false];
+            }
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pageName] = 1;
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pagesName] = $annotation->cacheLimit;
-            $res = $proceedingJoinPoint->process();
-            if ($annotation->dispatchLoopEnable === true) {
-                $this->asyncJobPush($annotation, $proceedingJoinPoint, $value);
-            }
-            return $res;
+            return [$proceedingJoinPoint->process(), true];
         }, $value[$annotation->pageName], $value[$annotation->pagesName]);
     }
 }

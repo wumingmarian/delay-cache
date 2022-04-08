@@ -35,9 +35,14 @@ class Cache
     public function get($cacheKey, $callable = null)
     {
         if (!$this->redis->exists($cacheKey) && $callable instanceof \Closure) {
-            $this->set($cacheKey, $callable());
+            [$res, $isCache] = $callable();
+            if (true === $isCache) {
+                $this->set($cacheKey, $res);
+            } else {
+                return $res;
+            }
         }
-        $res = $this->redis->get($cacheKey) ?? [];
+        $res = $this->redis->get($cacheKey);
         return unserialize($res);
     }
 
@@ -67,18 +72,14 @@ class Cache
         $end = ($pages * $page) - 1;
 
         if (!$this->redis->exists($cacheKey)) {
-            $res = $callable();
-            $this->setByPaginate($cacheKey, $res);
-        } else {
-            $len = $this->redis->zCard($cacheKey);
-            if (!$this->exceedMaxPage($len, $page, $pages)) {
-                $res = [];
+            [$res, $isCache] = $callable();
+            if (true === $isCache) {
+                $this->setByPaginate($cacheKey, $res);
             } else {
-                $res = $this->getByPaginate($cacheKey, $start, $end, $sortBy);
+                return $res;
             }
         }
-
-        return $res;
+        return $this->getByPaginate($cacheKey, $start, $end, $sortBy);
     }
 
     /**
@@ -94,6 +95,11 @@ class Cache
             return $this->get($cacheKey);
         }
 
+        $len = $this->redis->zCard($cacheKey);
+        if (!$this->exceedMaxPage($len, $start)) {
+            return [];
+        }
+
         if ($sortBy === 'ASC') {
             $res = $this->redis->zRange($cacheKey, $start, $end);
         } else {
@@ -103,6 +109,7 @@ class Cache
         $res = array_map(function ($value) {
             return unserialize($value);
         }, $res);
+
         return $res;
     }
 
@@ -128,13 +135,12 @@ class Cache
 
     /**
      * @param $len
-     * @param $page
-     * @param $pages
+     * @param $start
      * @return bool
      */
-    public function exceedMaxPage($len, $page, $pages)
+    public function exceedMaxPage($len, $start)
     {
-        if ((($page - 1) * $pages) > $len) {
+        if ($start > $len) {
             return false;
         }
         return true;
