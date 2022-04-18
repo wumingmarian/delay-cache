@@ -93,6 +93,12 @@ class DispatchLoop
         $driver = $annotation->driver ?: ($config['driver'] ?? 'default');
         $delay = $annotation->delay ?: ($config['delay'] ?? 600);
 
+        $random = $config['random'] ?? true;
+
+        if ($random) {
+            $delay = $delay + mt_rand(0, 600);
+        }
+
         return $this->container->get(DriverFactory::class)->get($driver)->push(make($annotation->job, [
             $proceedingJoinPoint->className,
             $proceedingJoinPoint->methodName,
