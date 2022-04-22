@@ -10,6 +10,7 @@ use Hyperf\Di\Exception\Exception;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Wumingmarian\DelayCache\Annotation\DelayListCache;
+use Wumingmarian\DelayCache\Constants\SortBy;
 use Wumingmarian\DelayCache\Exception\ConfigureNotExistsException;
 
 /**
@@ -44,6 +45,7 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
 
         $value[$annotation->pageName] = (string)(isset($value[$annotation->pageName]) && is_numeric($value[$annotation->pageName]) ? $value[$annotation->pageName] : 1);
         $value[$annotation->pagesName] = (string)(isset($value[$annotation->pagesName]) && is_numeric($value[$annotation->pagesName]) ? $value[$annotation->pagesName] : 10);
+        $value[$annotation->sortByName] = (string)(isset($value[$annotation->sortByName]) && in_array($value[$annotation->sortByName], [SortBy::ASC, SortBy::DESC])) ? $value[$annotation->sortByName] : SortBy::ASC;
 
         $cacheKey = $this->cache->key($value, $annotation->config, $annotation->prefix);
         $expire = $this->cache->getConfig($annotation->config, 'expire');
