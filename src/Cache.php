@@ -38,11 +38,12 @@ class Cache
      * @param $expire
      * @return mixed
      */
-    public function get($cacheKey, $callable, $expire)
+    public function get($cacheKey, $callable = null, $expire = null)
     {
         if (!$this->redis->exists($cacheKey) && $callable instanceof \Closure) {
             [$res, $isCache] = $callable();
             if (true === $isCache) {
+                $expire = $expire ?: $this->expire;
                 $this->set($cacheKey, $res, $expire);
             } else {
                 return $res;
@@ -99,7 +100,7 @@ class Cache
     public function getByPaginate($cacheKey, $start, $end, $sortBy)
     {
         if ($this->redis->type($cacheKey) === \Redis::REDIS_STRING) {
-            return $this->redis->get($cacheKey);
+            return $this->get($cacheKey);
         }
 
         $len = $this->redis->zCard($cacheKey);
