@@ -24,7 +24,8 @@
         "hyperf/config": "~2.2.0",
         "hyperf/di": "~2.2.0",
         "hyperf/process": "^2.2",
-        "hyperf/redis": "~2.2.0"
+        "hyperf/redis": "~2.2.0",
+        "lysice/hyperf-redis-lock": "^2.1"
     },
     "suggest": {
         "swow/swow": "Required to create swow components."

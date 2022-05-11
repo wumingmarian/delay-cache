@@ -49,6 +49,7 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
 
         $cacheKey = $this->cache->key($value, $annotation->config, $annotation->prefix);
         $expire = $this->cache->getConfig($annotation->config, 'expire');
+        $blockTimeout = $this->cache->getConfig($annotation->config, 'block_timeout');
 
         return $this->cache->paginate($cacheKey, function () use ($proceedingJoinPoint, $annotation, $value) {
             if (true === $annotation->dispatchLoopEnable
@@ -58,6 +59,6 @@ class DelayListCacheAspect extends AbstractDelayCacheAspect
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pageName] = 1;
             $proceedingJoinPoint->arguments['keys'][$annotation->value][$annotation->pagesName] = $annotation->cacheLimit;
             return [$proceedingJoinPoint->process(), true];
-        }, $expire, $value[$annotation->pageName], $value[$annotation->pagesName], $value[$annotation->sortByName]);
+        }, $expire, $blockTimeout, $value[$annotation->pageName], $value[$annotation->pagesName], $value[$annotation->sortByName]);
     }
 }

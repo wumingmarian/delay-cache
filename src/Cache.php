@@ -8,6 +8,8 @@ namespace Wumingmarian\DelayCache;
 
 use Hyperf\Contract\ConfigInterface;
 use Hyperf\Redis\Redis;
+use Lysice\HyperfRedisLock\LockTimeoutException;
+use Lysice\HyperfRedisLock\RedisLock;
 use Wumingmarian\DelayCache\Constants\SortBy;
 use Wumingmarian\DelayCache\Exception\ConfigureNotExistsException;
 
@@ -26,6 +28,16 @@ class Cache
      */
     protected $expire = 86400;
 
+    /**
+     * @var string
+     */
+    protected $lockPrefix = '__DELAY_LOCK__:';
+
+    /**
+     * @var string
+     */
+    protected $blockTimeout = 30;
+
     public function __construct(ConfigInterface $config, Redis $redis)
     {
         $this->config = $config;
@@ -36,11 +48,21 @@ class Cache
      * @param $cacheKey
      * @param $callable
      * @param $expire
+     * @param $blockTimeout
      * @return mixed
+     * @throws LockTimeoutException
      */
-    public function get($cacheKey, $callable = null, $expire = null)
+    public function fetch($cacheKey, $callable, $expire, $blockTimeout)
     {
-        if (!$this->redis->exists($cacheKey) && $callable instanceof \Closure) {
+        if ($this->redis->exists($cacheKey)) {
+            return $this->get($cacheKey);
+        }
+
+        return $this->block($blockTimeout, $cacheKey, function () use ($cacheKey, $callable, $expire) {
+            if ($this->redis->exists($cacheKey)) {
+                return $this->get($cacheKey);
+            }
+
             [$res, $isCache] = $callable();
             if (true === $isCache) {
                 $expire = $expire ?: $this->expire;
@@ -48,7 +70,17 @@ class Cache
             } else {
                 return $res;
             }
-        }
+
+            return $this->get($cacheKey);
+        });
+    }
+
+    /**
+     * @param $cacheKey
+     * @return mixed
+     */
+    public function get($cacheKey)
+    {
         $res = $this->redis->get($cacheKey);
         return unserialize($res);
     }
@@ -69,25 +101,36 @@ class Cache
      * @param $cacheKey
      * @param $callable
      * @param $expire
+     * @param $blockTimeout
      * @param int $page
      * @param int $pages
-     * @param string $sortBy
+     * @param int $sortBy
      * @return array
+     * @throws LockTimeoutException
      */
-    public function paginate($cacheKey, $callable, $expire, $page = 1, $pages = 10, $sortBy = SortBy::ASC)
+    public function paginate($cacheKey, $callable, $expire, $blockTimeout, $page = 1, $pages = 10, $sortBy = SortBy::ASC)
     {
         $start = ($page - 1) * $pages;
         $end = ($pages * $page) - 1;
 
-        if (!$this->redis->exists($cacheKey)) {
+        if ($this->redis->exists($cacheKey)) {
+            return $this->getByPaginate($cacheKey, $start, $end, $sortBy);
+        }
+
+        return $this->block($blockTimeout, $cacheKey, function () use ($cacheKey, $callable, $expire, $start, $end, $sortBy) {
+            if ($this->redis->exists($cacheKey)) {
+                return $this->getByPaginate($cacheKey, $start, $end, $sortBy);
+            }
+
             [$res, $isCache] = $callable();
             if (true === $isCache) {
                 $this->setByPaginate($cacheKey, $res, $expire);
             } else {
                 return $res;
             }
-        }
-        return $this->getByPaginate($cacheKey, $start, $end, $sortBy);
+
+            return $this->getByPaginate($cacheKey, $start, $end, $sortBy);
+        });
     }
 
     /**
@@ -232,5 +275,21 @@ class Cache
             $expire = $this->expire;
         }
         return $this->redis->expire($cacheKey, $expire);
+    }
+
+    /**
+     * @param $blockTimeout
+     * @param $cacheKey
+     * @param $callable
+     * @return bool|mixed
+     * @throws LockTimeoutException
+     */
+    public function block($blockTimeout, $cacheKey, $callable)
+    {
+        $blockTimeout = $blockTimeout ?: $this->blockTimeout;
+        $lock = new RedisLock($this->redis, $this->lockPrefix . $cacheKey, $blockTimeout, "1");
+        return $lock->block($blockTimeout, function () use ($callable, $cacheKey) {
+            return $callable();
+        });
     }
 }
